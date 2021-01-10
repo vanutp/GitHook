@@ -86,7 +86,7 @@ async def trigger(chat_id: Union[int, str], show_author_name: Optional[bool] = T
             if len(text + commits) <= 4096:
                 text += commits
             await bot.send_message(chat_id, text, link_preview=False)
-    elif x_gitlab_event == 'Pipeline Hook' or x_github_event == 'check_run':  # TODO: gh actions, параметры
+    elif x_gitlab_event == 'Pipeline Hook' or x_github_event == 'check_run':
         event = format_pipeline_event(service, payload)
         await bot.send_message(
             chat_id, pipeline_responses[event.status],
