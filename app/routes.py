@@ -11,7 +11,7 @@ from telethon import Button
 from app import bot
 from app.env import DEBUG
 from app.models import GitService
-from app.utils import format_push_event, format_pipeline_event
+from app.utils import format_push_event, format_pipeline_event, format_job_event
 
 router = APIRouter()
 
@@ -38,6 +38,14 @@ pipeline_responses = {
     'success': '<b>🥳 Pipeline succeed!</b>',
     'cancelled': '<b>✋ Pipeline cancelled</b>',
     'unknown': '<b>Unknown pipeline status!</b>'
+}
+
+job_responses = {
+    'running': '<b>🚀 Job {job} for started</b>',
+    'failed': '<b>😔 Job {job} for failed</b>',
+    'success': '<b>🥳 Job {job} for succeed!</b>',
+    'cancelled': '<b>✋ Job {job} for cancelled</b>',
+    'unknown': '<b>Job {job} for has unknown status!</b>'
 }
 
 
@@ -86,13 +94,22 @@ async def trigger(chat_id: Union[int, str], show_author_name: Optional[bool] = T
             if len(text + commits) <= 4096:
                 text += commits
             await bot.send_message(chat_id, text, link_preview=False)
-    elif x_gitlab_event == 'Pipeline Hook' or x_github_event == 'check_run':
+    elif x_gitlab_event == 'Pipeline Hook':
         event = format_pipeline_event(service, payload)
         await bot.send_message(
             chat_id, pipeline_responses[event.status],
             buttons=[[
                 Button.url(event.repo.name, event.repo.url),
-                Button.url(f'#{event.id}', event.url)
+                Button.url('Pipeline', event.url)
+            ]]
+        )
+    elif x_github_event == 'check_run':
+        event = format_job_event(service, payload)
+        await bot.send_message(
+            chat_id, job_responses[event.status].format(job=event.name, pipeline=f'#{event.pipeline.id}'),
+            buttons=[[
+                Button.url(event.repo.name, event.repo.url),
+                Button.url('Pipeline', event.url)
             ]]
         )
     else:

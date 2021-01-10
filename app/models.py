@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -31,7 +31,7 @@ class PushEvent(BaseModel):
     repo: Repository
 
 
-class PipelineStatus(str, Enum):
+class Status(str, Enum):
     unknown = 'unknown'
     running = 'running'
     failed = 'failed'
@@ -41,6 +41,15 @@ class PipelineStatus(str, Enum):
 
 class PipelineEvent(BaseModel):
     id: int
+    url: Optional[str]
+    status: Status
+    repo: Repository
+
+
+class JobEvent(BaseModel):
+    id: int
+    name: str
     url: str
-    status: PipelineStatus
+    status: Status
+    pipeline: PipelineEvent
     repo: Repository
