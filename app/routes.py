@@ -41,11 +41,11 @@ pipeline_responses = {
 }
 
 job_responses = {
-    'running': '<b>🚀 Job {job} for started</b>',
-    'failed': '<b>😔 Job {job} for failed</b>',
-    'success': '<b>🥳 Job {job} for succeed!</b>',
-    'cancelled': '<b>✋ Job {job} for cancelled</b>',
-    'unknown': '<b>Job {job} for has unknown status!</b>'
+    'running': '<b>🚀 Job "{job}" started</b>',
+    'failed': '<b>😔 Job "{job}" failed</b>',
+    'success': '<b>🥳 Job "{job}" succeed!</b>',
+    'cancelled': '<b>✋ Job "{job}" cancelled</b>',
+    'unknown': '<b>Job "{job}" has unknown status!</b>'
 }
 
 
