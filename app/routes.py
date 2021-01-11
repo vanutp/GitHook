@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 from html import escape
 from time import time
 from typing import Optional, Union
@@ -11,7 +12,7 @@ from telethon import Button
 from app import bot
 from app.env import DEBUG
 from app.models import GitService
-from app.utils import format_push_event, format_pipeline_event, format_job_event
+from app.utils import format_push_event, format_pipeline_event, format_job_event, format_old_style_commit_message
 
 router = APIRouter()
 
@@ -49,11 +50,42 @@ job_responses = {
 }
 
 
+class PushMessageStyle(str, Enum):
+    old = 'old'
+    new = 'new'
+
+
 @router.post('/trigger/{chat_id}')
-async def trigger(chat_id: Union[int, str], show_author_name: Optional[bool] = True,
-                  multiline_commit: Optional[bool] = True, max_commits: Optional[int] = 6,
+async def trigger(chat_id: Union[int, str],
+                  push_message_style: Optional[PushMessageStyle] = PushMessageStyle.new,
+                  show_author_name: Optional[bool] = True, multiline_commit: Optional[bool] = True,
+                  max_commits: Optional[int] = 5,
                   x_gitlab_event: Optional[str] = Header(None), x_github_event: Optional[str] = Header(None),
                   payload: dict = Body(...)):
+    """
+    Webhook url
+
+    Arguments
+        push_message_style (`str`, optional):
+            'old' or 'new'
+            default 'new'
+
+        show_author_name (`bool`, optional):
+            Only for push_message_style == 'old'
+            default True
+
+        multiline_commit (`bool`, optional):
+            Only for push_message_style == 'old'
+            default True
+
+        max_commits (`bool`, optional):
+            Maximum 5 in push_message_style == 'new'
+            default 5
+
+        x_gitlab_event (`str`, optional)
+        x_github_event (`str`, optional)
+        payload (`dict`)
+    """
     if x_gitlab_event:
         service = GitService.gl
     elif x_github_event:
@@ -68,32 +100,35 @@ async def trigger(chat_id: Union[int, str], show_author_name: Optional[bool] = T
         return Response(None, 204)
     if x_gitlab_event == 'Push Hook' or x_github_event == 'push':  # TODO: редизайн сообщения
         event = format_push_event(service, payload)
-        ref = f'{escape(event.repo.name)}:{escape(event.ref.split("/")[-1])}'
-        if event.forced:
-            head = f'<a href="{event.repo.url}/commit/{event.head_sha}">{escape(event.head_sha[:7])}</a>'
-            if show_author_name:
-                head += f'\n- by {event.author}'
-            await bot.send_message(chat_id, f'🔨 Force pushed. <b>{ref}</b> is now at {head}', link_preview=False)
-        else:
-            if len(event.commits) <= max_commits or max_commits == 0:
-                commits = []
-                for commit in event.commits:
-                    msg = escape(commit.message)
-                    if not multiline_commit:
-                        msg = msg.split('\n')[0]
-                    msg = msg.strip('\n')
-                    commit_msg = f'<a href="{escape(commit.url)}">{escape(commit.id[:7])}</a>: <code>{msg}</code>'
-                    if show_author_name:
-                        commit_msg += f'\n- by {escape(commit.author)}'
-                    commits.append(commit_msg)
-                commits = ':\n\n' + '\n'.join(commits)
+        if push_message_style == PushMessageStyle.old:
+            await bot.send_message(
+                chat_id,
+                format_old_style_commit_message(event, show_author_name, multiline_commit, max_commits),
+                link_preview=False
+            )
+        elif push_message_style == PushMessageStyle.new:
+            if max_commits == 0 or max_commits > 5:
+                max_commits = 5
+            ref = escape(f'{event.repo.name}:{event.ref.split("/")[-1]}')
+            if event.forced:
+                await bot.send_message(
+                    chat_id, f'🔨 <b>{escape(event.author)} force pushed</b>',
+                    buttons=[[
+                        Button.url(ref, event.ref_url),
+                        Button.url(event.head_sha[:7], event.head_url)
+                    ]]
+                )
             else:
-                commits = ''
-            commits_word = 'commit' if len(event.commits) == 1 else 'commits'
-            text = f'🔨 {len(event.commits)} new {commits_word} to <b>{ref}</b>'
-            if len(text + commits) <= 4096:
-                text += commits
-            await bot.send_message(chat_id, text, link_preview=False)
+                for commit in event.commits[:max_commits]:
+                    await bot.send_message(
+                        chat_id, f'📝 <b>New commit by {escape(event.author)}</b>\n'
+                                 f'<pre>{escape(commit.message)}</pre>',
+                        buttons=[[
+                            Button.url(ref, event.ref_url),
+                            Button.url(event.head_sha[:7], event.head_url)
+                        ]]
+                    )
+        return Response(None, 204)
     elif x_gitlab_event == 'Pipeline Hook':
         event = format_pipeline_event(service, payload)
         await bot.send_message(
@@ -103,6 +138,7 @@ async def trigger(chat_id: Union[int, str], show_author_name: Optional[bool] = T
                 Button.url('Pipeline', event.url)
             ]]
         )
+        return Response(None, 204)
     elif x_github_event == 'check_run':
         event = format_job_event(service, payload)
         await bot.send_message(
@@ -112,6 +148,6 @@ async def trigger(chat_id: Union[int, str], show_author_name: Optional[bool] = T
                 Button.url('Pipeline', event.url)
             ]]
         )
-    else:
-        return JSONResponse({'detail': 'Unknown event'}, 400)
-    return Response(None, 204)
+        return Response(None, 204)
+    return JSONResponse({'detail': 'Unknown event'}, 400)
+

@@ -1,27 +1,32 @@
+from html import escape
+
 from app.models import GitService, PushEvent, Repository, Commit, PipelineEvent, Status, JobEvent
 
 
 def format_push_event(service: GitService, payload: dict) -> PushEvent:
     event = PushEvent.construct()
     event.repo = Repository.construct()
+    event.ref = payload['ref']
     if service == GitService.gh:
         event.repo.url = payload['repository']['html_url']
         event.repo.name = payload['repository']['full_name']
         event.forced = payload['forced']
         event.author = payload['pusher']['name']
+        event.ref_url = f'{event.repo.url}/tree/{event.ref}'
     elif service == GitService.gl:
         event.repo.url = payload['project']['web_url']
         event.repo.name = payload['project']['path_with_namespace']
         event.forced = False
         event.author = payload['user_name']
+        event.ref_url = f'{event.repo.url}/-/tree/{event.ref}'
     event.head_sha = payload['after']
-    event.ref = payload['ref']
+    event.head_url = f'{event.repo.url}/commit/{event.head_sha}'
     event.commits = []
     for commit in payload['commits']:
         event.commits.append(
             Commit(
                 id=commit['id'],
-                message=commit['message'],
+                message=commit['message'].strip('\n'),
                 author=commit['author']['name'],
                 url=commit['url']
             )
@@ -39,6 +44,7 @@ def format_pipeline_event(service: GitService, payload: dict) -> PipelineEvent:
         event.repo.name = payload['project']['path_with_namespace']
         event.url = f'{event.repo.url}/-/pipelines/{event.id}'
     return event
+
 
 def _convert_github_status(status: str, conclusion: str) -> Status:
     if status in ['queued', 'in_progress']:
@@ -69,3 +75,32 @@ def format_job_event(service: GitService, payload: dict) -> JobEvent:
         event.pipeline.repo = event.repo
         event.pipeline.status = _convert_github_status(check_suite['status'], check_suite['conclusion'])
     return event
+
+
+def format_old_style_commit_message(event: PushEvent,
+                                    show_author_name: bool, multiline_commit: bool, max_commits: int) -> str:
+    ref = escape(f'{event.repo.name}:{event.ref.split("/")[-1]}')
+    if event.forced:
+        head = f'<a href="{event.repo.url}/commit/{event.head_sha}">{escape(event.head_sha[:7])}</a>'
+        if show_author_name:
+            head += f'\n- by {escape(event.author)}'
+        return f'🔨 Force pushed. <b>{ref}</b> is now at {head}'
+    if len(event.commits) <= max_commits or max_commits == 0:
+        commits = []
+        for commit in event.commits:
+            msg = escape(commit.message)
+            if not multiline_commit:
+                msg = msg.split('\n')[0]
+            msg = msg.strip('\n')
+            commit_msg = f'<a href="{escape(commit.url)}">{escape(commit.id[:7])}</a>: <code>{msg}</code>'
+            if show_author_name:
+                commit_msg += f'\n- by {escape(commit.author)}'
+            commits.append(commit_msg)
+        commits = ':\n\n' + '\n'.join(commits)
+    else:
+        commits = ''
+    commits_word = 'commit' if len(event.commits) == 1 else 'commits'
+    text = f'🔨 {len(event.commits)} new {commits_word} to <b>{ref}</b>'
+    if len(text + commits) <= 4096:
+        text += commits
+    return text

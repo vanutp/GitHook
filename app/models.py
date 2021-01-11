@@ -25,7 +25,9 @@ class Repository(BaseModel):
 class PushEvent(BaseModel):
     forced: bool
     ref: str
+    ref_url: str
     head_sha: str
+    head_url: str
     author: str
     commits: List[Commit]
     repo: Repository
