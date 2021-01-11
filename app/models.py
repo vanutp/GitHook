@@ -55,3 +55,7 @@ class JobEvent(BaseModel):
     status: Status
     pipeline: PipelineEvent
     repo: Repository
+
+
+class Error(BaseModel):
+    detail: str

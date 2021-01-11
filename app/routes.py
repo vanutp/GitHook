@@ -11,7 +11,7 @@ from telethon import Button
 
 from app import bot
 from app.env import DEBUG
-from app.models import GitService
+from app.models import GitService, Error
 from app.utils import format_push_event, format_pipeline_event, format_job_event, format_old_style_commit_message
 
 router = APIRouter()
@@ -55,7 +55,12 @@ class PushMessageStyle(str, Enum):
     new = 'new'
 
 
-@router.post('/trigger/{chat_id}')
+@router.post('/trigger/{chat_id}',
+             responses={
+                 204: {'description': 'OK'},
+                 400: {'model': Error}
+             },
+             status_code=204)
 async def trigger(chat_id: Union[int, str],
                   push_message_style: Optional[PushMessageStyle] = PushMessageStyle.new,
                   show_author_name: Optional[bool] = True, multiline_commit: Optional[bool] = True,
