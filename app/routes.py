@@ -65,26 +65,18 @@ async def trigger(chat_id: Union[int, str],
     """
     Webhook url
 
-    Arguments
-        push_message_style (`str`, optional):
-            'old' or 'new'
-            default 'new'
-
-        show_author_name (`bool`, optional):
-            Only for push_message_style == 'old'
-            default True
-
-        multiline_commit (`bool`, optional):
-            Only for push_message_style == 'old'
-            default True
-
-        max_commits (`bool`, optional):
-            Maximum 5 in push_message_style == 'new'
-            default 5
-
-        x_gitlab_event (`str`, optional)
-        x_github_event (`str`, optional)
-        payload (`dict`)
+    Arguments:
+    - push_message_style (`str`, optional, default 'new'):
+        'old' or 'new'
+    - show_author_name (`bool`, optional, default True):
+        Only for push_message_style == 'old'
+    - multiline_commit (`bool`, optional, default True):
+        Only for push_message_style == 'old'
+    - max_commits (`bool`, optional, default 5):
+        Maximum 5 in push_message_style == 'new'
+    - x_gitlab_event (`str`)
+    - x_github_event (`str`)
+    - payload (`dict`)
     """
     if x_gitlab_event:
         service = GitService.gl
