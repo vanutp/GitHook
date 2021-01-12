@@ -7,18 +7,19 @@ def format_push_event(service: GitService, payload: dict) -> PushEvent:
     event = PushEvent.construct()
     event.repo = Repository.construct()
     event.ref = payload['ref']
+    short_ref = event.ref.split("/")[-1]
     if service == GitService.gh:
         event.repo.url = payload['repository']['html_url']
         event.repo.name = payload['repository']['full_name']
         event.forced = payload['forced']
         event.author = payload['pusher']['name']
-        event.ref_url = f'{event.repo.url}/tree/{event.ref}'
+        event.ref_url = f'{event.repo.url}/tree/{short_ref}'
     elif service == GitService.gl:
         event.repo.url = payload['project']['web_url']
         event.repo.name = payload['project']['path_with_namespace']
         event.forced = False
         event.author = payload['user_name']
-        event.ref_url = f'{event.repo.url}/-/tree/{event.ref}'
+        event.ref_url = f'{event.repo.url}/-/tree/{short_ref}'
     event.head_sha = payload['after']
     event.head_url = f'{event.repo.url}/commit/{event.head_sha}'
     event.commits = []

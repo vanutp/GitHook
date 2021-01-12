@@ -106,7 +106,7 @@ async def trigger(chat_id: Union[int, str],
         elif push_message_style == PushMessageStyle.new:
             if max_commits == 0 or max_commits > 5:
                 max_commits = 5
-            ref = escape(f'{event.repo.name}:{event.ref.split("/")[-1]}')
+            ref = f'{event.repo.name}:{event.ref.split("/")[-1]}'
             if event.forced:
                 await bot.send_message(
                     chat_id, f'🔨 <b>{escape(event.author)} force pushed</b>',
