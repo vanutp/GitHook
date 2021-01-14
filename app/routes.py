@@ -122,7 +122,7 @@ async def trigger(chat_id: Union[int, str],
                                  f'<pre>{escape(commit.message)}</pre>',
                         buttons=[[
                             Button.url(ref, event.ref_url),
-                            Button.url(event.head_sha[:7], event.head_url)
+                            Button.url(commit.id[:7], commit.url)
                         ]]
                     )
         return Response(None, 204)
