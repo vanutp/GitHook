@@ -119,7 +119,7 @@ async def trigger(chat_id: Union[int, str],
                 for commit in event.commits[:max_commits]:
                     await bot.send_message(
                         chat_id, f'📝 <b>New commit by {escape(event.author)}</b>\n'
-                                 f'<pre>{escape(commit.message)}</pre>',
+                                 f'{escape(commit.message)}',
                         buttons=[[
                             Button.url(ref, event.ref_url),
                             Button.url(commit.id[:7], commit.url)
